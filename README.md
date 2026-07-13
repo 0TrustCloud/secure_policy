@@ -96,7 +96,9 @@ if err != nil {
 err := sessionManager.RevokeSession(activeJTI, 24*time.Hour)
 
 // Permanently blacklist a compromised hardware device identity globally across the mesh
-err := sessionManager.RevokeDevice(subject)
+err := sessionManager.BlacklistDevice(subject)
+// After restore / incident closed:
+err = sessionManager.ClearDeviceBlacklist(subject)
 
 ```
 

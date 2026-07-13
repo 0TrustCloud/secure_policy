@@ -207,10 +207,11 @@ func (pe *PolicyEngine) checkConditions(required map[string]string, actual map[s
 // Management Mutation Layer
 // =============================================================================
 
-func (pe *PolicyEngine) RevokeSubject(subject []byte) error {
+// BlacklistSubject permanently bans a subject in policy evaluation (device blacklist ledger).
+func (pe *PolicyEngine) BlacklistSubject(subject []byte) error {
 	subjectID := hashSubject(subject)
 	targetAddress := "blacklist:device:" + subjectID
-	
+
 	script := `blacklist:device(status("revoked"))`
 	nonce := getNextNonce(pe.sdfEngine, "pop", targetAddress)
 
@@ -227,10 +228,16 @@ func (pe *PolicyEngine) RevokeSubject(subject []byte) error {
 	return err
 }
 
+// RevokeSubject is a deprecated alias for BlacklistSubject.
+func (pe *PolicyEngine) RevokeSubject(subject []byte) error {
+	return pe.BlacklistSubject(subject)
+}
+
+// RestoreSubject lifts a prior BlacklistSubject ban.
 func (pe *PolicyEngine) RestoreSubject(subject []byte) error {
 	subjectID := hashSubject(subject)
 	targetAddress := "blacklist:device:" + subjectID
-	
+
 	script := `blacklist:device(status("active"))`
 	nonce := getNextNonce(pe.sdfEngine, "pop", targetAddress)
 

@@ -56,6 +56,8 @@ func (m *mockKVStore) NewIterator(txn ultimate_db.TxnHandle, prefix []byte) ulti
 	return nil
 }
 
+func (m *mockKVStore) Flush() error { return nil }
+
 type mockLockManager struct {
 	acquiredLocks map[string]uint64
 	releasedAll   bool
@@ -248,15 +250,27 @@ func TestSessionManager_DeviceGlobalKillSwitch(t *testing.T) {
 		t.Fatalf("failed initializing state trace: %v", err)
 	}
 
-	// Execute global device cancellation directive
-	err = sm.RevokeDevice(subject)
+	// Permanent device ban (keeps working after compromise recovery tooling)
+	err = sm.BlacklistDevice(subject)
 	if err != nil {
 		t.Fatalf("failed committing device hardware identity blacklisting sequence: %v", err)
 	}
 
 	// Ensure subsequent verification blocks validation on identity criteria match
 	_, err = sm.ValidateCookieToken(tokenStr)
-	if err == nil || !strings.Contains(err.Error(), "device identity has been revoked") {
-		t.Errorf("expected global hardware identity revocation blockage, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "blacklisted") {
+		t.Errorf("expected permanent device blacklist blockage, got: %v", err)
+	}
+
+	// Clear ban restores access for a new session after restore
+	if err := sm.ClearDeviceBlacklist(subject); err != nil {
+		t.Fatalf("ClearDeviceBlacklist: %v", err)
+	}
+	token2, _, err := sm.IssueCookieToken(subject, 1*time.Hour)
+	if err != nil {
+		t.Fatalf("re-issue after clear: %v", err)
+	}
+	if _, err := sm.ValidateCookieToken(token2); err != nil {
+		t.Fatalf("expected session ok after un-blacklist, got: %v", err)
 	}
 }
